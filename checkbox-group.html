@@ -6,81 +6,114 @@
         <script>
             class CheckboxGroup {
                 constructor(cssClass, clickCallback) {
-                    this.cssClass = cssClass||'.checkbox-group';
-                    this.clickCallback = clickCallback||function(){};
+                    this.cssClass = cssClass || '.checkbox-group';
+                    this.selectorStart = this.cssClass + '[type="checkbox"]';
+                    this.clickCallback = clickCallback || function(){};
                     this.setEvents(this);
-                }
+                };
                 setEvents(self) {
                     document.querySelectorAll(this.cssClass).forEach((element) => {
-                        element.addEventListener("click", box => {
-                            self.check(box.target);
-                            self.clickCallback.call(this, box.target);
+                        element.addEventListener('click', (box) => {
+                            let status = self.check(box.target);
+                            self.clickCallback.call(this, box.target, status.state, status.changedElements, self);
                         });
                     });
-                }
+                };
                 allChecked(group) {
-                    let allSelector = this.cssClass + '[type="checkbox"]' + (group ? '[data-group="' + group + '"]' : '') + ':not([data-check-all]):not([data-uncheck-all])';
-                    let selector = allSelector + ':checked';
-                    return parseInt(document.querySelectorAll(allSelector).length)-
-                        parseInt(document.querySelectorAll(selector).length) == 0;
-                }
+                    let allSelector = this.selectorStart + (group ? '[data-checkgroup-group="' + group + '"]' : '') + ':not([data-checkgroup-check-all]):not([data-checkgroup-uncheck-all])';
+                    let currentSelector = allSelector + ':checked';
+                    return parseInt(document.querySelectorAll(allSelector).length) -
+                        parseInt(document.querySelectorAll(currentSelector).length) == 0;
+                };
                 check(element) {
-                    let group = element.dataset.group||null;
-                    if (element.dataset.checkAll || element.dataset.uncheckAll) {
-                        let state = !!element.checked && !element.dataset.uncheckAll;
-                        let selector = this.cssClass + '[type="checkbox"]' + (!group ? ':not([data-uncheck-all])' : '[data-group="' + group + '"]');
+                    let changedElements = [element];
+                    let returnState = element.checked;
+                    let group = element.dataset.checkgroupGroup || null;
+                    if (element.dataset.checkgroupCheckAll || element.dataset.checkgroupUncheckAll) {
+                        let state = !!(element.dataset.checkgroupCheckAll);
+                        if (element instanceof HTMLInputElement && element.getAttribute('type') == 'checkbox') {
+                            state = element.checked && !element.dataset.checkgroupUncheckAll;
+                        }
+                        let selector = this.selectorStart + (!group ? ':not([data-checkgroup-uncheck-all])' : '[data-checkgroup-group="' + group + '"]');
+                        selector += (state ? ':not(:checked)' : ':checked');
+                        changedElements = Array.from(document.querySelectorAll(selector + ':not([data-checkgroup-check-all])'));
                         document.querySelectorAll(selector).forEach((checkbox) => {
                             checkbox.checked = state;
                         });
+                        returnState = state;
                     }
                     else {
+                        // check checkall checkbox if all checkboxes are checked in the group
                         let allChecked = this.allChecked(group);
-                        document.querySelectorAll(this.cssClass + '[type="checkbox"]' + '[data-group="' + group + '"][data-check-all]').forEach((checkbox) => {
+                        document.querySelectorAll(this.selectorStart + '[data-checkgroup-group="' + group + '"][data-checkgroup-check-all]').forEach((checkbox) => {
                             checkbox.checked = allChecked;
                         });
                     }
+                    // check overall checkall checkbox if all checkboxes are checked
                     let overallAllchecked = this.allChecked();
-                    document.querySelectorAll(this.cssClass + '[type="checkbox"]' + ':not([data-group])[data-check-all]').forEach((checkbox) => {
+                    document.querySelectorAll(this.selectorStart + ':not([data-checkgroup-group])[data-checkgroup-check-all]').forEach((checkbox) => {
                         checkbox.checked = overallAllchecked;
                     });
+                    return {'state': returnState, 'changedElements': changedElements};
                 };
             };
 
-            window.addEventListener( "DOMContentLoaded", () => {
-                new CheckboxGroup('.checkbox-group', function(element) {
+            window.addEventListener('DOMContentLoaded', () => {
+                new CheckboxGroup('.checkbox-group', (element, state, changedElements, self) => {
                     console.log(element);
+                    console.log(state);
+                    console.log(changedElements);
                 });
             });
         </script>
     </head>
     <body>
         <form>
-            <h3>Group 1</h3>
-            <input type="checkbox" data-group="1" data-check-all="1" class="checkbox-group"> check all group 1<br />
-            <input type="checkbox" value="1" data-group="1" name="values[]" class="checkbox-group"> checkbox 1.1<br />
-            <input type="checkbox" value="1" data-group="1" name="values[]" class="checkbox-group"> checkbox 1.2<br />
-            <input type="checkbox" value="1" data-group="1" name="values[]" class="checkbox-group"> checkbox 1.3<br />
-            <input type="button" data-uncheck-all="1"  data-group="1" class="checkbox-group" value="uncheck all"><br />
+            <h3>Group 1 with labels</h3>
+            <input type="checkbox" data-checkgroup-group="1" data-checkgroup-check-all="1" class="checkbox-group" id="checkbox_1_0">
+            <label for="checkbox_1_0"> check all group 1</label><br />
 
-            <h3>Group 2</h3>
-            <input type="checkbox" data-group="2" data-check-all="1"  class="checkbox-group check-all"> check all group 2<br />
-            <input type="checkbox" value="1" data-group="2" name="values[]" class="checkbox-group"> checkbox 2.1<br />
-            <input type="checkbox" value="1" data-group="2" name="values[]" class="checkbox-group"> checkbox 2.2<br />
-            <input type="checkbox" value="1" data-group="2" name="values[]" class="checkbox-group"> checkbox 2.3<br />
-            <input type="checkbox" value="1" data-group="2" name="values[]" class="checkbox-group"> checkbox 2.4<br />
+            <input type="checkbox" value="1" data-checkgroup-group="1" name="values[11]" class="checkbox-group" id="checkbox_1_1">
+            <label for="checkbox_1_1"> checkbox 1.1</label><br />
 
-            <h3>Group 3</h3>
-            <input type="checkbox" data-group="3" data-check-all="1"  class="checkbox-group check-all"> check all group 3<br />
-            <input type="checkbox" value="1" data-group="3" name="values[]" class="checkbox-group"> checkbox 3.1<br />
-            <input type="checkbox" value="1" data-group="3" name="values[]" class="checkbox-group"> checkbox 3.2<br />
+            <input type="checkbox" value="1" data-checkgroup-group="1" name="values[12]" class="checkbox-group" id="checkbox_1_2">
+            <label for="checkbox_1_2"> checkbox 1.2</label><br />
 
-            <h3>Group 4</h3>
-            <input type="checkbox" value="1" data-group="4" name="values[]" class="checkbox-group"> checkbox 4.1<br />
-            <input type="checkbox" value="1" data-group="4" name="values[]" class="checkbox-group"> checkbox 4.2<br />
+            <input type="checkbox" value="1" data-checkgroup-group="1" name="values[13]" class="checkbox-group" id="checkbox_1_3"><label for="checkbox_1_3"> checkbox 1.3</label><br />
+
+            <input type="button" data-checkgroup-uncheck-all="1"  data-checkgroup-group="1" class="checkbox-group" value="uncheck all btn"><br />
+
+            <h3>Group 2 with labels</h3>
+            <input type="checkbox" data-checkgroup-group="2" data-checkgroup-check-all="1"  class="checkbox-group check-all" id="checkbox_2_0">
+            <label for="checkbox_2_0"> check all group 2</label><br />
+
+            <input type="checkbox" value="1" data-checkgroup-group="2" name="values[21]" class="checkbox-group" id="checkbox_2_1">
+            <label for="checkbox_2_1"> checkbox 2.1</label><br />
+
+            <input type="checkbox" value="1" data-checkgroup-group="2" name="values[22]" class="checkbox-group" id="checkbox_2_2">
+            <label for="checkbox_2_2"> checkbox 2.2</label><br />
+
+            <input type="checkbox" value="1" data-checkgroup-group="2" name="values[23]" class="checkbox-group"" id="checkbox_2_3">
+            <label for="checkbox_2_3"> checkbox 2.3</label><br />
+
+            <input type="checkbox" value="1" data-checkgroup-group="2" name="values[24]" class="checkbox-group" id="checkbox_2_4">
+            <label for="checkbox_2_4"> checkbox 2.4</label><br />
+
+            <input type="button" data-checkgroup-check-all="1" data-checkgroup-group="2" class="checkbox-group" value="check all btn"><br />
+
+            <h3>Group 3 without labels</h3>
+            <input type="checkbox" data-checkgroup-group="3" data-checkgroup-check-all="1"  class="checkbox-group check-all"> check all group 3<br />
+            <input type="checkbox" value="1" data-checkgroup-group="3" name="values[31]" class="checkbox-group"> checkbox 3.1<br />
+            <input type="checkbox" value="1" data-checkgroup-group="3" name="values[32]" class="checkbox-group"> checkbox 3.2<br />
+
+            <h3>Group 4 without labels</h3>
+            <input type="checkbox" value="1" data-checkgroup-group="4" name="values[41]" class="checkbox-group"> checkbox 4.1<br />
+            <input type="checkbox" value="1" data-checkgroup-group="4" name="values[42]" class="checkbox-group"> checkbox 4.2<br />
             
             <br /><br />
-            <input type="checkbox" data-check-all="1"  class="checkbox-group"> check all<br /><br />
-            <input type="button" data-uncheck-all="1"  class="checkbox-group" value="uncheck all"><br />
+            <input type="checkbox" data-checkgroup-check-all="1" class="checkbox-group" id="checkbox_overall"><label for="checkbox_overall"> check all</label><br /><br />
+            <input type="button" data-checkgroup-check-all="1" class="checkbox-group" value="check all btn"><br />
+            <input type="button" data-checkgroup-uncheck-all="1" class="checkbox-group" value="uncheck all btn"><br />
         </form>
 
     </body>
